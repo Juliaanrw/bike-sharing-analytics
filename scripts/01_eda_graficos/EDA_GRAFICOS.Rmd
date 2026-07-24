@@ -1,0 +1,66 @@
+---
+title: "R Notebook"
+
+```{r}
+datos <- read.csv("day.csv")
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+datos$dteday <- as.Date(datos$dteday)
+```
+
+```{r}
+datos$nombre_mes <- factor(datos$mnth, 
+                           levels = 1:12, 
+                           labels = c("Ene", "Feb", "Mar", "Abr", "May", "Jun", 
+                                      "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"))
+```
+
+
+
+```{r}
+datos$tipo_dia <- factor(datos$workingday, 
+                         levels = c(0, 1), 
+                         labels = c("Fin de Semana / Feriado", "Día Laboral"))
+```
+
+
+
+```{r}
+ggplot(datos, aes(x = nombre_mes, y = cnt, fill = nombre_mes)) +
+  geom_bar(stat = "summary", fun = "mean") +
+  theme_minimal() +
+  labs(title = "Demanda Promedio Diaria de Bicicletas por Mes",
+       x = "Mes", 
+       y = "Promedio de Alquileres (cnt)") +
+  theme(legend.position = "none")
+```
+
+
+
+```{r}
+ggplot(datos, aes(x = tipo_dia, y = cnt, fill = tipo_dia)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Distribución de Demanda: Días Laborales vs. Fines de Semana",
+       x = "", 
+       y = "Total de Bicicletas Alquiladas por Día (cnt)") +
+  theme(legend.position = "none")
+```
+
+
+```{r}
+ggplot(datos, aes(x = temp, y = cnt)) +
+  geom_point(alpha = 0.5, color = "#2b5c8f") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(title = "Relación entre la Demanda de Bicicletas y la Temperatura",
+       x = "Temperatura (Normalizada)", 
+       y = "Total de Bicicletas Alquiladas por Día (cnt)")
+```
+
+
