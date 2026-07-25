@@ -1,0 +1,108 @@
+---
+title: "Regresión Lineal Múltiple"
+output:
+  html_document:
+    df_print: paged
+---
+
+Librerias y dataset limpio
+```{r}
+library (tidyverse)
+```
+
+```{r}
+datos <- read.csv("day_preparado.csv")
+```
+
+
+DIVISIÓN TRAIN / TEST
+```{r}
+set.seed(123)
+
+n <- nrow(datos)
+
+indice <- sample(
+  1:n,
+  size = round(0.70*n)
+)
+
+entrenamiento <- datos[indice, ]
+prueba <- datos[-indice, ]
+
+cat(
+  "\nEntrenamiento:",
+  nrow(entrenamiento),
+  "\n"
+)
+
+cat(
+  "Prueba:",
+  nrow(prueba),
+  "\n"
+)
+```
+
+
+Entrenamiento del moodelo de regresión lineal múltiple
+```{r}
+modelo_lm <- lm(cnt ~ temp + hum + windspeed + workingday + season + mnth + weathersit, 
+                data = entrenamiento)
+```
+
+```{r}
+summary(modelo_lm)
+```
+
+
+Predicción y cálculo de metricas
+```{r}
+predicciones <- predict(modelo_lm, newdata = prueba)
+```
+
+```{r}
+rmse <- sqrt(mean((prueba$cnt - predicciones)^2))
+mae  <- mean(abs(prueba$cnt - predicciones))
+r2   <- 1 - (sum((prueba$cnt - predicciones)^2) / sum((prueba$cnt - mean(prueba$cnt))^2))
+```
+
+
+
+RESULTADOS FINALES
+```{r}
+cat("\n=== RESULTADOS REGRESIÓN LINEAL MÚLTIPLE ===\n")
+cat("RMSE :", round(rmse, 2), "\n")
+cat("MAE  :", round(mae, 2), "\n")
+cat("R²   :", round(r2, 4), "\n")
+```
+
+
+
+VISUALIZACIÓN DEL MODELO
+
+TABLA TEMPORAL
+```{r}
+df_grafico <- data.frame(
+  Real = prueba$cnt,
+  Predicho = predicciones
+)
+```
+
+
+
+```{r}
+grafico_real_vs_pred <- ggplot(df_grafico, aes(x = Real, y = Predicho)) +
+  geom_point(color = "#2c3e50", alpha = 0.6, size = 2.5) + 
+  geom_abline(intercept = 0, slope = 1, color = "#e74c3c", linetype = "dashed", linewidth = 1) + 
+  labs(
+    title = "Regresión Lineal Múltiple: Demanda Real vs. Predicha",
+    subtitle = "Los puntos cercanos a la línea roja punteada representan predicciones precisas",
+    x = "Demanda Real Bicicletas alquiladas en el dataset de prueba",
+    y = "Demanda Predicha por el Modelo"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+print(grafico_real_vs_pred)
+```
+
+
+
