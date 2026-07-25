@@ -1,8 +1,8 @@
 # bike-sharing-analytics
 
 # AUTORES: 
-Dereck Villalobos Quesada 
-Julián Rodriguez Espinoza 
+Dereck Villalobos Quesada,
+Julián Rodriguez Espinoza y
 Carlos Vega Barrientos 
 
 ## Descripción general
