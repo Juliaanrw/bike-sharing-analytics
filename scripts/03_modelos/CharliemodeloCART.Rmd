@@ -1,0 +1,135 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+ 
+
+```{r}
+
+# Cargar librerías
+
+library(caret)
+library(rpart)
+library(rpart.plot)
+
+```
+
+```{r}
+
+# Cargar el archivo CSV
+data <- read.csv("day_preparado.csv")
+
+# Ver estructura
+str(data)
+
+```
+
+
+```{r}
+
+# 1. División en entrenamiento y prueba
+set.seed(123)
+
+n <- nrow(data)
+
+indice <- sample(
+  1:n,
+  size = round(0.70*n)
+)
+
+entrenamiento <- data[indice, ]
+prueba <- data[-indice, ]
+
+cat("\nEntrenamiento:", nrow(entrenamiento), "\n")
+cat("Prueba:", nrow(prueba), "\n")
+
+```
+```{r}
+
+# 2. Preprocesamiento (centrar y escalar temp, atemp, hum, windspeed)
+pre <- preProcess(
+  entrenamiento[,8:11],
+  method = c("center", "scale")
+)
+
+entrenamiento[,8:11] <- predict(pre, entrenamiento[,8:11])
+prueba[,8:11] <- predict(pre, prueba[,8:11])
+
+# Ver resumen de las variables normalizadas
+summary(entrenamiento[,8:11])
+summary(prueba[,8:11])
+
+```
+```{r}
+
+# 3. Entrenar árbol de decisión
+modelo_arbol <- rpart(
+  cnt ~ season + yr + mnth + holiday + weekday +
+         workingday + weathersit + temp + atemp + hum + windspeed,
+  data = entrenamiento,
+  method = "anova"
+)
+
+```
+
+```{r}
+
+# Visualizar árbol
+rpart.plot(modelo_arbol)
+
+```
+
+```{r}
+
+# 4. Predicciones en conjunto de prueba
+predicciones <- predict(modelo_arbol, newdata = prueba)
+
+```
+
+```{r}
+
+# 5. Evaluación del modelo
+MAE <- mean(abs(predicciones - prueba$cnt))
+RMSE <- sqrt(mean((predicciones - prueba$cnt)^2))
+R2 <- cor(predicciones, prueba$cnt)^2
+
+cat("MAE:", MAE, "\n")
+cat("RMSE:", RMSE, "\n")
+cat("R²:", R2, "\n")
+
+```
+```{r}
+library(ggplot2)
+
+# Crear dataframe con valores reales y predichos
+df_grafico <- data.frame(
+  Real = prueba$cnt,
+  Predicho = predicciones
+)
+
+# Gráfico Real vs Predicho
+grafico_real_vs_pred <- ggplot(df_grafico, aes(x = Real, y = Predicho)) +
+  geom_point(color = "#2c3e50", alpha = 0.6, size = 2.5) + 
+  geom_abline(intercept = 0, slope = 1, color = "#e74c3c", 
+              linetype = "dashed", linewidth = 1) + 
+  labs(
+    title = "Árbol de Decisión: Demanda Real vs. Predicha",
+    subtitle = "Los puntos cercanos a la línea roja punteada representan predicciones precisas",
+    x = "Demanda Real (bicicletas alquiladas en prueba)",
+    y = "Demanda Predicha por el Árbol"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+print(grafico_real_vs_pred)
+
+
+```
+
+
+
+
+
+
+
