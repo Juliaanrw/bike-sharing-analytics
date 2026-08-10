@@ -283,6 +283,23 @@ R2
 
 ```{R}
 
+RMSE <- sqrt(
+  mean(
+    (prueba$cnt - predicciones)^2
+  )
+)
+
+MAE <- mean(
+  abs(
+    prueba$cnt - predicciones
+  )
+)
+
+R2 <- cor(
+  prueba$cnt,
+  predicciones
+)^2
+
 resultados <- data.frame(
   Modelo = "SVM radial",
   RMSE = RMSE,
@@ -291,21 +308,6 @@ resultados <- data.frame(
 )
 
 resultados
-```
-
-
-
-
-```{R}
-
-MAE <- mean(
-  abs(
-    prueba$cnt -
-    predicciones
-  )
-)
-
-MAE
 ```
 
 
@@ -336,14 +338,6 @@ ggplot(
     x = "Alquileres reales",
     y = "Alquileres predichos"
   )
-```
-
-```{R}
-write.csv(
-  datos,
-  "day_preparado.csv",
-  row.names = FALSE
-)
 ```
 
 
