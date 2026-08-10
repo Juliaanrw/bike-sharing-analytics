@@ -1,0 +1,543 @@
+---
+title: "Proyecto Final - Predicción de Demanda de Bicicletas"
+output: html_document
+---
+
+# 1. Carga de librerías
+
+```{r}
+library(tidyverse)
+library(caret)
+library(e1071)
+library(rpart)
+library(rpart.plot)
+library(corrplot)
+library(ggplot2)
+```
+
+# 2. Carga y revisión del dataset preparado
+
+```{r}
+datos <- read.csv("day_preparado.csv")
+
+head(datos)
+str(datos)
+summary(datos)
+colSums(is.na(datos))
+nrow(datos)
+```
+
+El archivo `day_preparado.csv` contiene las variables seleccionadas previamente para el proyecto. Como un archivo CSV no conserva el tipo factor, las variables categóricas se convierten nuevamente antes de construir los modelos.
+
+```{r}
+datos$season <- as.factor(datos$season)
+datos$yr <- as.factor(datos$yr)
+datos$mnth <- as.factor(datos$mnth)
+datos$holiday <- as.factor(datos$holiday)
+datos$weekday <- as.factor(datos$weekday)
+datos$workingday <- as.factor(datos$workingday)
+datos$weathersit <- as.factor(datos$weathersit)
+
+str(datos)
+```
+
+# 3. Análisis exploratorio inicial
+
+## 3.1 Distribución de la demanda
+
+```{r}
+ggplot(datos, aes(x = cnt)) +
+  geom_histogram(
+    bins = 20,
+    fill = "steelblue",
+    color = "black"
+  ) +
+  labs(
+    title = "Distribución del total de alquileres",
+    x = "Cantidad total de alquileres",
+    y = "Frecuencia"
+  )
+```
+
+## 3.2 Relación entre temperatura y demanda
+
+```{r}
+ggplot(
+  datos,
+  aes(
+    x = temp,
+    y = cnt
+  )
+) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(
+    method = "lm",
+    se = FALSE,
+    color = "red"
+  ) +
+  labs(
+    title = "Relación entre temperatura y cantidad de alquileres",
+    x = "Temperatura normalizada",
+    y = "Cantidad total de alquileres"
+  )
+```
+
+# 4. División de los datos
+
+Se utiliza la misma división para los tres modelos, de manera que las métricas se calculen sobre las mismas observaciones de prueba.
+
+```{r}
+set.seed(123)
+
+n <- nrow(datos)
+
+indice <- sample(
+  1:n,
+  size = round(0.70*n)
+)
+
+entrenamiento <- datos[indice, ]
+prueba <- datos[-indice, ]
+
+nrow(entrenamiento)
+nrow(prueba)
+```
+
+# 5. Modelo 1 - Regresión Lineal Múltiple
+
+Se conserva la fórmula utilizada en el trabajo de Regresión Lineal Múltiple del equipo.
+
+```{r}
+modelo_lm <- lm(
+  cnt ~ temp + hum + windspeed + workingday + season + mnth + weathersit,
+  data = entrenamiento
+)
+
+summary(modelo_lm)
+```
+
+```{r}
+pred_lm <- predict(
+  modelo_lm,
+  newdata = prueba
+)
+
+RMSE_lm <- sqrt(
+  mean(
+    (prueba$cnt - pred_lm)^2
+  )
+)
+
+MAE_lm <- mean(
+  abs(
+    prueba$cnt - pred_lm
+  )
+)
+
+R2_lm <- cor(
+  prueba$cnt,
+  pred_lm
+)^2
+
+RMSE_lm
+MAE_lm
+R2_lm
+```
+
+# 6. Modelo 2 - CART
+
+Se crean copias de entrenamiento y prueba para aplicar el preprocesamiento sin modificar los datos utilizados por los demás modelos.
+
+```{r}
+entrenamiento_cart <- entrenamiento
+prueba_cart <- prueba
+
+pre_cart <- preProcess(
+  entrenamiento_cart[,8:11],
+  method = c("center", "scale")
+)
+
+entrenamiento_cart[,8:11] <- predict(
+  pre_cart,
+  entrenamiento_cart[,8:11]
+)
+
+prueba_cart[,8:11] <- predict(
+  pre_cart,
+  prueba_cart[,8:11]
+)
+```
+
+```{r}
+modelo_arbol <- rpart(
+  cnt ~ season + yr + mnth + holiday + weekday +
+    workingday + weathersit + temp + atemp + hum + windspeed,
+  data = entrenamiento_cart,
+  method = "anova"
+)
+
+rpart.plot(modelo_arbol)
+```
+
+```{r}
+pred_cart <- predict(
+  modelo_arbol,
+  newdata = prueba_cart
+)
+
+RMSE_cart <- sqrt(
+  mean(
+    (prueba_cart$cnt - pred_cart)^2
+  )
+)
+
+MAE_cart <- mean(
+  abs(
+    prueba_cart$cnt - pred_cart
+  )
+)
+
+R2_cart <- cor(
+  prueba_cart$cnt,
+  pred_cart
+)^2
+
+RMSE_cart
+MAE_cart
+R2_cart
+```
+
+# 7. Modelo 3 - SVM radial
+
+El SVM utiliza el mismo conjunto de entrenamiento y prueba. Las variables numéricas se centran y escalan utilizando únicamente el conjunto de entrenamiento.
+
+```{r}
+entrenamiento_svm <- entrenamiento
+prueba_svm <- prueba
+
+pre_svm <- preProcess(
+  entrenamiento_svm[,8:11],
+  method = c("center", "scale")
+)
+
+entrenamiento_svm[,8:11] <- predict(
+  pre_svm,
+  entrenamiento_svm[,8:11]
+)
+
+prueba_svm[,8:11] <- predict(
+  pre_svm,
+  prueba_svm[,8:11]
+)
+```
+
+```{r}
+modelo_radial <- svm(
+  cnt ~ .,
+  data = entrenamiento_svm,
+  kernel = "radial"
+)
+
+modelo_radial
+```
+
+```{r}
+pred_svm <- predict(
+  modelo_radial,
+  prueba_svm
+)
+
+RMSE_svm <- sqrt(
+  mean(
+    (prueba_svm$cnt - pred_svm)^2
+  )
+)
+
+MAE_svm <- mean(
+  abs(
+    prueba_svm$cnt - pred_svm
+  )
+)
+
+R2_svm <- cor(
+  prueba_svm$cnt,
+  pred_svm
+)^2
+
+RMSE_svm
+MAE_svm
+R2_svm
+```
+
+# 8. Comparación de los modelos
+
+Las mismas tres métricas se calculan para los tres modelos para facilitar la comparación.
+
+```{r}
+resultados_modelos <- data.frame(
+  Modelo = c(
+    "Regresión Lineal Múltiple",
+    "CART",
+    "SVM radial"
+  ),
+  RMSE = c(
+    RMSE_lm,
+    RMSE_cart,
+    RMSE_svm
+  ),
+  MAE = c(
+    MAE_lm,
+    MAE_cart,
+    MAE_svm
+  ),
+  R2 = c(
+    R2_lm,
+    R2_cart,
+    R2_svm
+  )
+)
+
+resultados_modelos
+```
+
+El modelo final se selecciona revisando conjuntamente RMSE, MAE y R² sobre el conjunto de prueba. Un menor RMSE y MAE representa menor error, mientras que un R² más cercano a 1 representa una mayor relación entre los valores reales y los valores predichos.
+
+# 9. Modelo final seleccionado
+
+De acuerdo con la comparación realizada por el equipo, el modelo final seleccionado es el SVM radial. La elección debe justificarse con los valores obtenidos en `resultados_modelos`.
+
+Los parámetros principales utilizados son:
+
+- Modelo SVM de regresión.
+- Kernel radial.
+- 70 % de los datos para entrenamiento.
+- 30 % de los datos para prueba.
+- Escalamiento de `temp`, `atemp`, `hum` y `windspeed`.
+
+La salida de `modelo_radial` muestra los parámetros utilizados por R para el modelo final.
+
+# 10. Resultados finales de predicción
+
+## 10.1 Métricas finales sobre datos de prueba
+
+```{r}
+resultados_svm <- data.frame(
+  Modelo = "SVM radial",
+  RMSE = RMSE_svm,
+  MAE = MAE_svm,
+  R2 = R2_svm
+)
+
+resultados_svm
+```
+
+Interpretación: el RMSE representa el error general del modelo en cantidad de alquileres. El MAE indica cuántas bicicletas separan, en promedio, las predicciones de los valores reales. El R² muestra qué tan relacionados están los valores reales y los valores predichos.
+
+## 10.2 Gráfico de predicción vs valores reales
+
+```{r}
+ggplot(
+  data.frame(
+    real = prueba_svm$cnt,
+    pred = pred_svm
+  ),
+  aes(
+    x = real,
+    y = pred
+  )
+) +
+  geom_point() +
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    color = "red"
+  ) +
+  theme_minimal() +
+  labs(
+    title = "Valores reales y predichos por el SVM radial",
+    x = "Alquileres reales",
+    y = "Alquileres predichos"
+  )
+```
+
+Los puntos más cercanos a la línea roja representan predicciones más próximas a los valores reales. Los puntos más alejados representan errores de predicción mayores.
+
+# 11. Interpretación y explicabilidad
+
+El SVM radial permite obtener buenas predicciones, pero el material de clase no utiliza una función específica de importancia de variables para este modelo. Por esta razón, la explicación se realiza utilizando el análisis exploratorio, las correlaciones y los patrones observados en las variables del proyecto.
+
+## 11.1 Variables numéricas relacionadas con la demanda
+
+```{r}
+variables_clima <- datos %>%
+  select(
+    temp,
+    atemp,
+    hum,
+    windspeed,
+    cnt
+  )
+
+cor_clima <- cor(
+  variables_clima,
+  use = "complete.obs"
+)
+
+print(
+  round(
+    cor_clima,
+    2
+  )
+)
+```
+
+```{r}
+corrplot(
+  cor_clima,
+  method = "color",
+  type = "upper",
+  tl.cex = 0.8
+)
+```
+
+Esta matriz permite identificar cuáles variables climáticas presentan una relación más fuerte, positiva o negativa, con `cnt`.
+
+## 11.2 Demanda según estación
+
+```{r}
+demanda_estacion <- datos %>%
+  group_by(season) %>%
+  summarise(
+    promedio_demanda = mean(cnt),
+    casos = n()
+  )
+
+demanda_estacion
+```
+
+```{r}
+ggplot(
+  datos,
+  aes(
+    x = season,
+    y = cnt
+  )
+) +
+  geom_boxplot(
+    fill = "orange",
+    color = "black"
+  ) +
+  labs(
+    title = "Demanda de bicicletas según estación",
+    x = "Estación",
+    y = "Cantidad total de alquileres"
+  )
+```
+
+## 11.3 Demanda según condición climática
+
+```{r}
+demanda_clima <- datos %>%
+  group_by(weathersit) %>%
+  summarise(
+    promedio_demanda = mean(cnt),
+    casos = n()
+  )
+
+demanda_clima
+```
+
+```{r}
+ggplot(
+  datos,
+  aes(
+    x = weathersit,
+    y = cnt
+  )
+) +
+  geom_boxplot(
+    fill = "steelblue",
+    color = "black"
+  ) +
+  labs(
+    title = "Demanda de bicicletas según condición climática",
+    x = "Condición climática",
+    y = "Cantidad total de alquileres"
+  )
+```
+
+## 11.4 Estacionalidad mensual
+
+```{r}
+demanda_mes <- datos %>%
+  group_by(mnth) %>%
+  summarise(
+    promedio_demanda = mean(cnt),
+    casos = n()
+  )
+
+demanda_mes
+```
+
+```{r}
+ggplot(
+  datos,
+  aes(
+    x = mnth,
+    y = cnt
+  )
+) +
+  geom_boxplot(
+    fill = "orange",
+    color = "black"
+  ) +
+  labs(
+    title = "Demanda de bicicletas según mes",
+    x = "Mes",
+    y = "Cantidad total de alquileres"
+  )
+```
+
+## 11.5 Días laborales y no laborales
+
+```{r}
+demanda_dia <- datos %>%
+  group_by(workingday) %>%
+  summarise(
+    promedio_demanda = mean(cnt),
+    casos = n()
+  )
+
+demanda_dia
+```
+
+```{r}
+ggplot(
+  datos,
+  aes(
+    x = workingday,
+    y = cnt
+  )
+) +
+  geom_boxplot(
+    fill = "steelblue",
+    color = "black"
+  ) +
+  labs(
+    title = "Demanda de bicicletas según tipo de día",
+    x = "Tipo de día",
+    y = "Cantidad total de alquileres"
+  )
+```
+
+# 12. Interpretación final
+
+La interpretación de las variables debe realizarse a partir de las tablas y gráficos anteriores. En particular, se debe revisar:
+
+- Qué variables climáticas presentan las correlaciones más altas con `cnt`.
+- Qué estaciones presentan mayor y menor demanda promedio.
+- Cómo cambia la demanda según `weathersit`.
+- En qué meses se presentan los valores de demanda más altos y más bajos.
+- Si existen diferencias relevantes entre días laborales y no laborales.
+
+Estas observaciones permiten relacionar los resultados predictivos con decisiones empresariales sobre disponibilidad y distribución de bicicletas.
