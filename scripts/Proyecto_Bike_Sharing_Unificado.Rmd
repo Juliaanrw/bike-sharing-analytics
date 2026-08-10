@@ -1,5 +1,5 @@
 ---
-title: "Proyecto Final - Predicción de Demanda de Bicicletas"
+title: "Proyecto Final- Dereck Villalobos, Julián Rodriguez Espinoza, Carlos Vega Barrientos "
 output: html_document
 ---
 
@@ -303,18 +303,29 @@ resultados_modelos
 El modelo final se selecciona revisando conjuntamente RMSE, MAE y R² sobre el conjunto de prueba. Un menor RMSE y MAE representa menor error, mientras que un R² más cercano a 1 representa una mayor relación entre los valores reales y los valores predichos.
 
 # 9. Modelo final seleccionado
+De acuerdo con las métricas obtenidas sobre los datos de prueba, el modelo seleccionado fue el SVM radial.
 
-De acuerdo con la comparación realizada por el equipo, el modelo final seleccionado es el SVM radial. La elección debe justificarse con los valores obtenidos en `resultados_modelos`.
+Este modelo obtuvo el menor RMSE (680.59) y el menor MAE (471.22), además del mayor R² (0.8919). En comparación, CART obtuvo un R² de 0.7994 y la Regresión Lineal Múltiple un R² de 0.5813.
 
-Los parámetros principales utilizados son:
+Por lo tanto, el SVM radial presentó el mejor desempeño predictivo de los tres modelos evaluados.
 
-- Modelo SVM de regresión.
-- Kernel radial.
-- 70 % de los datos para entrenamiento.
-- 30 % de los datos para prueba.
-- Escalamiento de `temp`, `atemp`, `hum` y `windspeed`.
 
-La salida de `modelo_radial` muestra los parámetros utilizados por R para el modelo final.
+--------------------------------------------------------------------------
+Los parámetros principales del modelo final fueron:
+
+- Tipo de modelo: SVM de regresión.
+- Kernel: radial.
+- Cost: 1.
+- Gamma: 0.03333333.
+- Epsilon: 0.1.
+- Vectores de soporte: 341.
+- División de datos: 70 % entrenamiento y 30 % prueba.
+- Variables numéricas escaladas: `temp`, `atemp`, `hum` y `windspeed`.
+---------------------------------------------------------------------------
+
+
+
+
 
 # 10. Resultados finales de predicción
 
@@ -331,7 +342,9 @@ resultados_svm <- data.frame(
 resultados_svm
 ```
 
-Interpretación: el RMSE representa el error general del modelo en cantidad de alquileres. El MAE indica cuántas bicicletas separan, en promedio, las predicciones de los valores reales. El R² muestra qué tan relacionados están los valores reales y los valores predichos.
+El SVM radial obtuvo un RMSE de 680.59, un MAE de 471.22 y un R² de 0.8919 sobre los datos de prueba.
+
+El MAE indica que las predicciones se alejan de los valores reales en aproximadamente 471 alquileres, en promedio. Además, el R² obtenido muestra una alta relación entre los valores reales y los valores predichos, lo que confirma el buen desempeño del modelo.
 
 ## 10.2 Gráfico de predicción vs valores reales
 
@@ -359,8 +372,8 @@ ggplot(
     y = "Alquileres predichos"
   )
 ```
+En el gráfico se observa que la mayoría de las predicciones se mantienen cerca de la línea roja, lo que indica una buena aproximación entre los alquileres reales y los predichos. Aunque existen algunos casos con mayor diferencia, el comportamiento general muestra un buen ajuste del SVM radial.
 
-Los puntos más cercanos a la línea roja representan predicciones más próximas a los valores reales. Los puntos más alejados representan errores de predicción mayores.
 
 # 11. Interpretación y explicabilidad
 
@@ -390,6 +403,10 @@ print(
   )
 )
 ```
+La temperatura (`temp`) y la sensación térmica (`atemp`) son las variables climáticas numéricas que presentan mayor relación con la demanda, ambas con una correlación de 0.63 con `cnt`.
+
+La velocidad del viento presenta una relación negativa de -0.23 y la humedad una relación negativa de -0.10. Esto indica que la demanda tiende a aumentar con temperaturas más favorables y a disminuir ligeramente cuando aumenta el viento o la humedad.
+
 
 ```{r}
 corrplot(
@@ -414,6 +431,10 @@ demanda_estacion <- datos %>%
 
 demanda_estacion
 ```
+La demanda presenta un comportamiento estacional claro. La estación 3 registró el mayor promedio de alquileres, con aproximadamente 5644 bicicletas por día, seguida por la estación 2 con 4992.
+
+La estación 1 presentó la menor demanda, con aproximadamente 2604 alquileres diarios. Esto muestra que la estación del año influye de forma importante en el uso del sistema
+
 
 ```{r}
 ggplot(
@@ -433,6 +454,9 @@ ggplot(
     y = "Cantidad total de alquileres"
   )
 ```
+También se observa estacionalidad a nivel mensual. La demanda aumenta progresivamente durante los primeros meses del año y alcanza sus niveles más altos entre mayo y septiembre.
+
+Junio presentó el mayor promedio, con aproximadamente 5772 alquileres diarios, seguido muy de cerca por septiembre con 5767. En cambio, enero presentó la menor demanda promedio, con aproximadamente 2176 alquileres.
 
 ## 11.3 Demanda según condición climática
 
@@ -446,7 +470,9 @@ demanda_clima <- datos %>%
 
 demanda_clima
 ```
+Las condiciones climáticas también muestran un efecto importante sobre la demanda. La categoría `weathersit = 1` presentó el mayor promedio, con aproximadamente 4877 alquileres diarios, mientras que la categoría 2 disminuyó a 4036.
 
+La categoría 3 presentó una caída considerable, con un promedio de aproximadamente 1803 alquileres. Por lo tanto, conforme las condiciones climáticas son menos favorables, la demanda de bicicletas disminuye notablemente.
 ```{r}
 ggplot(
   datos,
@@ -510,6 +536,9 @@ demanda_dia <- datos %>%
 
 demanda_dia
 ```
+La diferencia entre días laborales y no laborales es menor que la observada en las estaciones o en las condiciones climáticas.
+
+Los días laborales presentaron un promedio de aproximadamente 4585 alquileres, mientras que los días no laborales registraron aproximadamente 4330. Esto muestra que la demanda se mantiene relativamente alta en ambos tipos de día, aunque es ligeramente mayor durante los días laborales.
 
 ```{r}
 ggplot(
@@ -529,15 +558,3 @@ ggplot(
     y = "Cantidad total de alquileres"
   )
 ```
-
-# 12. Interpretación final
-
-La interpretación de las variables debe realizarse a partir de las tablas y gráficos anteriores. En particular, se debe revisar:
-
-- Qué variables climáticas presentan las correlaciones más altas con `cnt`.
-- Qué estaciones presentan mayor y menor demanda promedio.
-- Cómo cambia la demanda según `weathersit`.
-- En qué meses se presentan los valores de demanda más altos y más bajos.
-- Si existen diferencias relevantes entre días laborales y no laborales.
-
-Estas observaciones permiten relacionar los resultados predictivos con decisiones empresariales sobre disponibilidad y distribución de bicicletas.
